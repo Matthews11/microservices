@@ -14,4 +14,8 @@ public interface UsuarioService {
     Usuario save(Usuario usuario);
 
     void delete(Long id);
+
+    Optional<Usuario> findByMail(String mail);
+
+    boolean existsByMail(String mail);
 }

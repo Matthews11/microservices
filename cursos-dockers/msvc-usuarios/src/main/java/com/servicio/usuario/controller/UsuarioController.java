@@ -47,41 +47,37 @@ public class UsuarioController {
     }
 
     @PostMapping("/crear")
-    public ResponseEntity< ?> crear(@RequestBody @Valid Usuario usuario, BindingResult validacion){
+    public ResponseEntity< ?> crear(@RequestBody @Valid Usuario usuario, BindingResult validar){
+        Map<String,Object> mensajes= new HashMap<>();
 
-          Map<String,Object> mensajes= new HashMap<>();
-        errores.clear();
-        if (validacion.hasErrors()){
-
-            for (FieldError errorCampos: validacion.getFieldErrors()){
-                errores.add("El campo '"+errorCampos.getField()+"' "+errorCampos.getDefaultMessage());
-            }
-
-            mensajes.put("error",errores);
-
-            return  new ResponseEntity<Map<String,Object>>(mensajes,HttpStatus.INTERNAL_SERVER_ERROR);
-
-        }else {
-            return new ResponseEntity<Usuario>(service.save(usuario),HttpStatus.CREATED);
+        if (validar.hasErrors()){
+            return validaciones(validar, mensajes);
+        }if(!usuario.getMail().isEmpty() && service.existsByMail(usuario.getMail())){
+            mensajes.put("respuesta","Ya existe un usuario con ese correo electronico");
+            return new ResponseEntity<Map<String,Object>>(mensajes,HttpStatus.BAD_REQUEST);
         }
+
+        return new ResponseEntity<Usuario>(service.save(usuario),HttpStatus.CREATED);
+
     }
 
-    @PutMapping("/modificar/{id}")
-    public ResponseEntity< ?> editar(@RequestBody @Valid Usuario usuario, BindingResult validacion,@PathVariable(name = "id") Long id){
-          Map<String,Object> mensajes= new HashMap<>();
-        errores.clear();
-        Optional<Usuario> obtenerUsuario =service.findById(id);
 
-        if (validacion.hasErrors()){
-            for (FieldError errorCampos: validacion.getFieldErrors()) {
-                errores.add("El campo '"+errorCampos.getField()+"' "+errorCampos.getDefaultMessage());
-            }
-            mensajes.put("error", errores);
-            return  new ResponseEntity<Map<String,Object>>(mensajes,HttpStatus.INTERNAL_SERVER_ERROR);
+
+    @PutMapping("/modificar/{id}")
+    public ResponseEntity< ?> editar(@RequestBody @Valid Usuario usuario, BindingResult validar,@PathVariable(name = "id") Long id){
+        Map<String,Object> mensajes= new HashMap<>();
+        Optional<Usuario> obtener =service.findById(id);
+        if (validar.hasErrors()){
+            return validaciones(validar, mensajes);
         }
 
-        if (obtenerUsuario.isPresent()){
-            Usuario usuario1 = obtenerUsuario.get();
+        if (obtener.isPresent()){
+            Usuario usuario1 = obtener.get();
+            if(!usuario.getMail().isEmpty() && !usuario.getMail().equalsIgnoreCase(obtener.get().getMail())
+                    && service.findByMail(usuario1.getMail()).isPresent()){
+                mensajes.put("respuesta","Ya existe un usuario con ese correo electronico");
+                return new ResponseEntity<Map<String,Object>>(mensajes,HttpStatus.BAD_REQUEST);
+            }
             usuario1.setNombre(usuario.getNombre());
             usuario1.setMail(usuario.getMail());
             usuario1.setPassword(usuario.getPassword());
@@ -89,6 +85,16 @@ public class UsuarioController {
         }
 
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+
+
+    private ResponseEntity<Map<String, Object>> validaciones(BindingResult validacion, Map<String, Object> mensajes) {
+        errores.clear();
+        for (FieldError errorCampos: validacion.getFieldErrors()) {
+            errores.add("El campo '"+errorCampos.getField()+"' "+errorCampos.getDefaultMessage());
+        }
+        mensajes.put("error", errores);
+        return new ResponseEntity<Map<String, Object>>(mensajes, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @DeleteMapping("/eliminar/{id}")
